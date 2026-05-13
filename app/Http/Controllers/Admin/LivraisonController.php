@@ -39,7 +39,6 @@ class LivraisonController extends Controller
     /**
      * Afficher toutes les livraisons.
      */
-    // app/Http/Controllers/LivraisonController.php
     public function index(): JsonResponse
     {
         $livraisons = Livraison::get();
@@ -58,7 +57,8 @@ class LivraisonController extends Controller
                 'date_ramassage' => $livraison->date_ramassage,
                 'date_livraison' => $livraison->date_livraison,
                 'status' => $livraison->status,
-                'payment_status' => $livraison->payment_status,  // ✅ AJOUTER CETTE LIGNE
+                'payment_status' => $livraison->payment_status,
+                'type_livraison' => $livraison->demandeLivraison->type_livraison ?? null,
                 'livreur_distributeur' => $livraison->livreurDistributeur?->user,
                 'livreur_ramasseur' => $livraison->livreurRamasseur?->user,
                 'demande_livraison' => $livraison->demandeLivraison->load([
@@ -75,7 +75,6 @@ class LivraisonController extends Controller
 
         return response()->json($datas, 200);
     }
-
     public function statistiquesClient($id): JsonResponse
     {
         $livraisons = Livraison::where('client_id', $id)->get();
@@ -2294,162 +2293,12 @@ class LivraisonController extends Controller
 
 
 
-/**
- * Afficher le formulaire d'édition d'une livraison (récupérer toutes les données)
- */
-public function edit($id): JsonResponse
-{
-    Log::info("Admin - Récupération des données pour édition de la livraison ID: " . $id);
-
-    $livraison = $this->findLivraison($id);
-
-    if (!$livraison) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Livraison introuvable',
-        ], 404);
-    }
-
-    // Charger toutes les relations nécessaires
-    $livraison->load([
-        'client.user',
-        'demandeLivraison' => function($q) {
-            $q->with(['client.user', 'destinataire.user', 'colis']);
-        },
-        'livreurRamasseur.user',
-        'livreurDistributeur.user',
-        'commentaires'
-    ]);
-
-    // Récupérer la demande de livraison associée
-    $demande = $livraison->demandeLivraison;
-
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'livraison' => [
-                'id' => $livraison->id,
-                'client_id' => $livraison->client_id,
-                'demande_livraisons_id' => $livraison->demande_livraisons_id,
-                'livreur_distributeur_id' => $livraison->livreur_distributeur_id,
-                'livreur_ramasseur_id' => $livraison->livreur_ramasseur_id,
-                'bordereau_id' => $livraison->bordereau_id,
-                'code_pin' => $livraison->code_pin,
-                'date_ramassage' => $livraison->date_ramassage,
-                'date_livraison' => $livraison->date_livraison,
-                'status' => $livraison->status,
-                'payment_status' => $livraison->payment_status,
-                'created_at' => $livraison->created_at,
-                'updated_at' => $livraison->updated_at,
-            ],
-            'demande_livraison' => $demande ? [
-                'id' => $demande->id,
-                'client_id' => $demande->client_id,
-                'destinataire_id' => $demande->destinataire_id,
-                'colis_id' => $demande->colis_id,
-                'addresse_depot' => $demande->addresse_depot,
-                'addresse_delivery' => $demande->addresse_delivery,
-                'info_additionnel' => $demande->info_additionnel,
-                'prix' => $demande->prix,
-                'wilaya_depot' => $demande->wilaya_depot,
-                'commune_depot' => $demande->commune_depot,
-                'wilaya' => $demande->wilaya,
-                'commune' => $demande->commune,
-                'depose_au_depot' => $demande->depose_au_depot,
-                'lat_depot' => $demande->lat_depot,
-                'lng_depot' => $demande->lng_depot,
-                'lat_delivery' => $demande->lat_delivery,
-                'lng_delivery' => $demande->lng_delivery,
-            ] : null,
-            'colis' => $demande && $demande->colis ? [
-                'id' => $demande->colis->id,
-                'colis_label' => $demande->colis->colis_label,
-                'poids' => $demande->colis->poids,
-                'colis_type' => $demande->colis->colis_type,
-                'colis_prix' => $demande->colis->colis_prix,
-                'colis_photo' => $demande->colis->colis_photo,
-                'colis_photo_url' => $demande->colis->colis_photo_url,
-            ] : null,
-            'client' => $livraison->client ? [
-                'id' => $livraison->client->id,
-                'user_id' => $livraison->client->user_id,
-                'nom' => $livraison->client->user?->nom,
-                'prenom' => $livraison->client->user?->prenom,
-                'email' => $livraison->client->user?->email,
-                'telephone' => $livraison->client->user?->telephone,
-            ] : null,
-            'destinataire' => $demande && $demande->destinataire ? [
-                'id' => $demande->destinataire->id,
-                'user_id' => $demande->destinataire->user_id,
-                'nom' => $demande->destinataire->user?->nom,
-                'prenom' => $demande->destinataire->user?->prenom,
-                'email' => $demande->destinataire->user?->email,
-                'telephone' => $demande->destinataire->user?->telephone,
-            ] : null,
-            'livreur_ramasseur' => $livraison->livreurRamasseur ? [
-                'id' => $livraison->livreurRamasseur->id,
-                'nom' => $livraison->livreurRamasseur->user?->nom,
-                'prenom' => $livraison->livreurRamasseur->user?->prenom,
-                'telephone' => $livraison->livreurRamasseur->user?->telephone,
-            ] : null,
-            'livreur_distributeur' => $livraison->livreurDistributeur ? [
-                'id' => $livraison->livreurDistributeur->id,
-                'nom' => $livraison->livreurDistributeur->user?->nom,
-                'prenom' => $livraison->livreurDistributeur->user?->prenom,
-                'telephone' => $livraison->livreurDistributeur->user?->telephone,
-            ] : null,
-        ]
-    ], 200);
-}
-
-/**
- * Mettre à jour une livraison complètement (admin seulement)
- */
-public function update(Request $request, $id): JsonResponse
-{
-    Log::info("Admin - Début mise à jour complète de la livraison ID: " . $id);
-
-    $validator = Validator::make($request->all(), [
-        // Livraison fields
-        'client_id' => 'sometimes|string|exists:clients,id',
-        'livreur_distributeur_id' => 'nullable|string|exists:livreurs,id',
-        'livreur_ramasseur_id' => 'nullable|string|exists:livreurs,id',
-        'code_pin' => 'nullable|string|size:5',
-        'date_ramassage' => 'nullable|date',
-        'date_livraison' => 'nullable|date',
-        'status' => 'sometimes|string|in:en_attente,prise_en_charge_ramassage,ramasse,en_transit,prise_en_charge_livraison,livre,annule',
-        'payment_status' => 'sometimes|string|in:pending,available,in_transit,paid',
-
-        // Demande livraison fields
-        'addresse_depot' => 'nullable|string|max:255',
-        'addresse_delivery' => 'nullable|string|max:255',
-        'info_additionnel' => 'nullable|string',
-        'prix' => 'nullable|numeric|min:0',
-        'wilaya_depot' => 'nullable|string|max:255',
-        'commune_depot' => 'nullable|string|max:255',
-        'wilaya' => 'nullable|string|max:255',
-        'commune' => 'nullable|string|max:255',
-
-        // Colis fields
-        'colis_label' => 'nullable|string|max:255',
-        'colis_poids' => 'nullable|numeric|min:0',
-        'colis_type' => 'nullable|string|max:255',
-        'colis_prix' => 'nullable|numeric|min:0',
-    ]);
-
-    if ($validator->fails()) {
-        Log::warning("Validation échouée pour mise à jour livraison: " . json_encode($validator->errors()));
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur de validation',
-            'errors' => $validator->errors(),
-        ], 422);
-    }
-
-    $validatedData = $validator->validated();
-
-    try {
-        DB::beginTransaction();
+    /**
+     * Afficher le formulaire d'édition d'une livraison (récupérer toutes les données)
+     */
+    public function edit($id): JsonResponse
+    {
+        Log::info("Admin - Récupération des données pour édition de la livraison ID: " . $id);
 
         $livraison = $this->findLivraison($id);
 
@@ -2460,382 +2309,569 @@ public function update(Request $request, $id): JsonResponse
             ], 404);
         }
 
+        // Charger toutes les relations nécessaires
+        $livraison->load([
+            'client.user',
+            'demandeLivraison' => function ($q) {
+                $q->with(['client.user', 'destinataire.user', 'colis']);
+            },
+            'livreurRamasseur.user',
+            'livreurDistributeur.user',
+            'commentaires'
+        ]);
+
+        // Récupérer la demande de livraison associée
         $demande = $livraison->demandeLivraison;
 
-        // 1. Mettre à jour la livraison
-        $livraisonFields = array_intersect_key($validatedData, array_flip([
-            'client_id', 'livreur_distributeur_id', 'livreur_ramasseur_id',
-            'code_pin', 'date_ramassage', 'date_livraison', 'status', 'payment_status'
-        ]));
-
-        if (!empty($livraisonFields)) {
-            $livraison->update($livraisonFields);
-            Log::info("Livraison mise à jour avec les champs: ", $livraisonFields);
-        }
-
-        // 2. Mettre à jour la demande de livraison si existe
-        if ($demande) {
-            $demandeFields = array_intersect_key($validatedData, array_flip([
-                'addresse_depot', 'addresse_delivery', 'info_additionnel', 'prix',
-                'wilaya_depot', 'commune_depot', 'wilaya', 'commune'
-            ]));
-
-            if (!empty($demandeFields)) {
-                $demande->update($demandeFields);
-                Log::info("Demande livraison mise à jour avec les champs: ", $demandeFields);
-            }
-        }
-
-        // 3. Mettre à jour le colis si existe
-        $colis = $demande ? $demande->colis : null;
-        if ($colis) {
-            $colisFields = array_intersect_key($validatedData, array_flip([
-                'colis_label', 'colis_poids', 'colis_type', 'colis_prix'
-            ]));
-
-            // Renommer colis_poids -> poids
-            if (isset($colisFields['colis_poids'])) {
-                $colisFields['poids'] = $colisFields['colis_poids'];
-                unset($colisFields['colis_poids']);
-            }
-
-            if (!empty($colisFields)) {
-                $colis->update($colisFields);
-                Log::info("Colis mis à jour avec les champs: ", $colisFields);
-            }
-        }
-
-        // Journaliser la modification (optionnel - créer une table d'historique)
-        $this->logLivraisonModification($livraison, auth()->id(), $validatedData);
-
-        DB::commit();
-
-        // Recharger toutes les relations
-        $livraison->load([
-            'client.user',
-            'demandeLivraison.client.user',
-            'demandeLivraison.destinataire.user',
-            'demandeLivraison.colis',
-            'livreurRamasseur.user',
-            'livreurDistributeur.user'
-        ]);
-
-        Log::info("Livraison mise à jour avec succès: " . $id);
-
         return response()->json([
             'success' => true,
-            'message' => 'Livraison mise à jour avec succès',
-            'data' => $livraison
+            'data' => [
+                'livraison' => [
+                    'id' => $livraison->id,
+                    'client_id' => $livraison->client_id,
+                    'demande_livraisons_id' => $livraison->demande_livraisons_id,
+                    'livreur_distributeur_id' => $livraison->livreur_distributeur_id,
+                    'livreur_ramasseur_id' => $livraison->livreur_ramasseur_id,
+                    'bordereau_id' => $livraison->bordereau_id,
+                    'navette_id' => $livraison->navette_id,
+                    'code_pin' => $livraison->code_pin,
+                    'date_ramassage' => $livraison->date_ramassage,
+                    'date_livraison' => $livraison->date_livraison,
+                    'status' => $livraison->status,
+                    'payment_status' => $livraison->payment_status,
+                    'created_at' => $livraison->created_at,
+                    'updated_at' => $livraison->updated_at,
+                ],
+                'demande_livraison' => $demande ? [
+                    'id' => $demande->id,
+                    'client_id' => $demande->client_id,
+                    'destinataire_id' => $demande->destinataire_id,
+                    'colis_id' => $demande->colis_id,
+                    'addresse_depot' => $demande->addresse_depot,
+                    'addresse_delivery' => $demande->addresse_delivery,
+                    'info_additionnel' => $demande->info_additionnel,
+                    'prix' => $demande->prix,
+                    'wilaya_depot' => $demande->wilaya_depot,
+                    'commune_depot' => $demande->commune_depot,
+                    'wilaya' => $demande->wilaya,
+                    'commune' => $demande->commune,
+                    'depose_au_depot' => $demande->depose_au_depot,
+                    'type_livraison' => $demande->type_livraison,
+                    'prestation' => $demande->prestation,
+                    'lat_depot' => $demande->lat_depot,
+                    'lng_depot' => $demande->lng_depot,
+                    'lat_delivery' => $demande->lat_delivery,
+                    'lng_delivery' => $demande->lng_delivery,
+                ] : null,
+                'colis' => $demande && $demande->colis ? [
+                    'id' => $demande->colis->id,
+                    'colis_label' => $demande->colis->colis_label,
+                    'poids' => $demande->colis->poids,
+                    'colis_type' => $demande->colis->colis_type,
+                    'colis_prix' => $demande->colis->colis_prix,
+                    'colis_photo' => $demande->colis->colis_photo,
+                    'colis_photo_url' => $demande->colis->colis_photo_url,
+                ] : null,
+                'client' => $livraison->client ? [
+                    'id' => $livraison->client->id,
+                    'user_id' => $livraison->client->user_id,
+                    'nom' => $livraison->client->user?->nom,
+                    'prenom' => $livraison->client->user?->prenom,
+                    'email' => $livraison->client->user?->email,
+                    'telephone' => $livraison->client->user?->telephone,
+                ] : null,
+                'destinataire' => $demande && $demande->destinataire ? [
+                    'id' => $demande->destinataire->id,
+                    'user_id' => $demande->destinataire->user_id,
+                    'nom' => $demande->destinataire->user?->nom,
+                    'prenom' => $demande->destinataire->user?->prenom,
+                    'email' => $demande->destinataire->user?->email,
+                    'telephone' => $demande->destinataire->user?->telephone,
+                ] : null,
+                'livreur_ramasseur' => $livraison->livreurRamasseur ? [
+                    'id' => $livraison->livreurRamasseur->id,
+                    'nom' => $livraison->livreurRamasseur->user?->nom,
+                    'prenom' => $livraison->livreurRamasseur->user?->prenom,
+                    'telephone' => $livraison->livreurRamasseur->user?->telephone,
+                ] : null,
+                'livreur_distributeur' => $livraison->livreurDistributeur ? [
+                    'id' => $livraison->livreurDistributeur->id,
+                    'nom' => $livraison->livreurDistributeur->user?->nom,
+                    'prenom' => $livraison->livreurDistributeur->user?->prenom,
+                    'telephone' => $livraison->livreurDistributeur->user?->telephone,
+                ] : null,
+            ]
         ], 200);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error("Erreur lors de la mise à jour de la livraison {$id}: " . $e->getMessage());
-        Log::error("Trace: " . $e->getTraceAsString());
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur lors de la mise à jour de la livraison',
-            'error' => $e->getMessage(),
-        ], 500);
-    }
-}
-
-/**
- * Journaliser les modifications d'une livraison
- */
-private function logLivraisonModification($livraison, $adminId, $changes)
-{
-    try {
-        // Optionnel: créer une table 'livraison_historique' pour tracer les modifications
-        // Pour l'instant, on log simplement dans les logs
-        Log::info("LIVRAISON MODIFIEE", [
-            'livraison_id' => $livraison->id,
-            'admin_id' => $adminId,
-            'changes' => $changes,
-            'timestamp' => now()
-        ]);
-    } catch (\Exception $e) {
-        // Ne pas bloquer si le logging échoue
-        Log::warning("Erreur lors du logging de modification: " . $e->getMessage());
-    }
-}
-
-/**
- * Récupérer les clients pour le select (admin)
- */
-public function getClientsForSelect(): JsonResponse
-{
-    $clients = Client::with('user')->get()->map(function ($client) {
-        return [
-            'id' => $client->id,
-            'label' => trim(($client->user?->prenom ?? '') . ' ' . ($client->user?->nom ?? '')),
-            'telephone' => $client->user?->telephone ?? '',
-            'email' => $client->user?->email ?? '',
-        ];
-    });
-
-    return response()->json($clients, 200);
-}
-
-/**
- * Récupérer les livreurs pour le select (admin)
- */
-public function getLivreursForSelect(): JsonResponse
-{
-    $livreurs = Livreur::with('user')->where('desactiver', false)->get()->map(function ($livreur) {
-        return [
-            'id' => $livreur->id,
-            'label' => trim(($livreur->user?->prenom ?? '') . ' ' . ($livreur->user?->nom ?? '')),
-            'telephone' => $livreur->user?->telephone ?? '',
-            'type' => $livreur->type,
-        ];
-    });
-
-    return response()->json($livreurs, 200);
-}
-
-/**
- * Récupérer l'historique des statuts d'une livraison
- */
-public function getHistory($id): JsonResponse
-{
-    // Optionnel: implémenter avec une table d'historique
-    // Pour l'instant, retourner un tableau vide
-    return response()->json([
-        'success' => true,
-        'data' => []
-    ], 200);
-}
-
-
-/**
- * Créer une nouvelle livraison (admin)
- */
-public function store(Request $request): JsonResponse
-{
-    Log::info("Admin - Début création d'une nouvelle livraison");
-
-    $validator = Validator::make($request->all(), [
-        // Client
-        'client_id' => 'required|string|exists:clients,id',
-
-        // Livreurs
-        'livreur_ramasseur_id' => 'nullable|string|exists:livreurs,id',
-        'livreur_distributeur_id' => 'nullable|string|exists:livreurs,id',
-
-        // Statuts
-        'status' => 'required|string|in:en_attente,prise_en_charge_ramassage,ramasse,en_transit,prise_en_charge_livraison,livre,annule',
-        'payment_status' => 'required|string|in:pending,available,in_transit,paid',
-
-        // Dates
-        'date_ramassage' => 'nullable|date',
-        'date_livraison' => 'nullable|date',
-
-        // Destinataire
-        'destinataire_nom' => 'required|string|max:255',
-        'destinataire_email' => 'nullable|email|max:255',
-        'destinataire_telephone' => 'required|string|max:20',
-
-        // Adresses
-        'addresse_depot' => 'nullable|string|max:500',
-        'addresse_delivery' => 'required|string|max:500',
-        'wilaya_depot' => 'nullable|string|max:255',
-        'commune_depot' => 'nullable|string|max:255',
-        'wilaya' => 'required|string|max:255',
-        'commune' => 'required|string|max:255',
-
-        // Colis
-        'colis_label' => 'nullable|string|max:255',
-        'colis_poids' => 'required|numeric|min:0.1',
-        'colis_type' => 'nullable|string|max:255',
-        'colis_prix' => 'nullable|numeric|min:0',
-
-        // Prix
-        'prix' => 'required|numeric|min:0',
-
-        // Mode dépôt
-        'depose_au_depot' => 'boolean',
-
-        // Informations supplémentaires
-        'info_additionnel' => 'nullable|string',
-    ]);
-
-    if ($validator->fails()) {
-        Log::warning("Validation échouée pour création livraison: " . json_encode($validator->errors()));
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur de validation',
-            'errors' => $validator->errors(),
-        ], 422);
     }
 
-    $validatedData = $validator->validated();
+    /**
+     * Mettre à jour une livraison complètement (admin seulement)
+     */
+    public function update(Request $request, $id): JsonResponse
+    {
+        Log::info("Admin - Début mise à jour complète de la livraison ID: " . $id);
 
-    try {
-        DB::beginTransaction();
+        $validator = Validator::make($request->all(), [
+            // Livraison fields
+            'client_id' => 'sometimes|string|exists:clients,id',
+            'livreur_distributeur_id' => 'nullable|string|exists:livreurs,id',
+            'livreur_ramasseur_id' => 'nullable|string|exists:livreurs,id',
+            'bordereau_id' => 'nullable|string|exists:bordereaux,id',
+            'navette_id' => 'nullable|string|exists:navettes,id',
+            'code_pin' => 'nullable|string|size:5',
+            'date_ramassage' => 'nullable|date',
+            'date_livraison' => 'nullable|date',
+            'status' => 'sometimes|string|in:en_attente,prise_en_charge_ramassage,ramasse,en_transit,prise_en_charge_livraison,livre,annule',
+            'payment_status' => 'sometimes|string|in:pending,available,in_transit,paid',
 
-        // 1. Créer ou récupérer le destinataire
-        $destinataire = $this->createOrGetDestinataire($validatedData);
+            // Demande livraison fields
+            'addresse_depot' => 'nullable|string|max:500',
+            'addresse_delivery' => 'nullable|string|max:500',
+            'info_additionnel' => 'nullable|string',
+            'prix' => 'nullable|numeric|min:0',
+            'wilaya_depot' => 'nullable|string|max:255',
+            'commune_depot' => 'nullable|string|max:255',
+            'wilaya' => 'nullable|string|max:255',
+            'commune' => 'nullable|string|max:255',
+            'type_livraison' => 'nullable|string|in:Livraison,Échange,Pick-up',
+            'prestation' => 'nullable|string|in:A domicile,Stop Desk',
+            'depose_au_depot' => 'nullable|boolean',
+            'lat_depot' => 'nullable|numeric',
+            'lng_depot' => 'nullable|numeric',
+            'lat_delivery' => 'nullable|numeric',
+            'lng_delivery' => 'nullable|numeric',
 
-        // 2. Créer le colis
-        $colis = $this->createColis($validatedData);
-
-        // 3. Créer la demande de livraison
-        $demande = $this->createDemandeLivraison($validatedData, $destinataire->id, $colis->id);
-
-        // 4. Déterminer le statut initial en fonction du mode dépôt
-        $isDepotClient = $validatedData['depose_au_depot'] ?? false;
-        $initialStatus = $isDepotClient ? 'en_transit' : ($validatedData['status'] ?? 'en_attente');
-
-        // 5. Créer la livraison
-        $livraison = Livraison::create([
-            'id' => (string) Str::uuid(),
-            'client_id' => $validatedData['client_id'],
-            'demande_livraisons_id' => $demande->id,
-            'livreur_distributeur_id' => $validatedData['livreur_distributeur_id'] ?? null,
-            'livreur_ramasseur_id' => $validatedData['livreur_ramasseur_id'] ?? null,
-            'code_pin' => $this->generateUniquePin(),
-            'date_ramassage' => $validatedData['date_ramassage'] ?? null,
-            'date_livraison' => $validatedData['date_livraison'] ?? null,
-            'status' => $initialStatus,
-            'payment_status' => $validatedData['payment_status'] ?? 'pending',
+            // Colis fields
+            'colis_label' => 'nullable|string|max:255',
+            'colis_poids' => 'nullable|numeric|min:0',
+            'colis_type' => 'nullable|string|max:255',
+            'colis_prix' => 'nullable|numeric|min:0',
         ]);
 
-        DB::commit();
+        if ($validator->fails()) {
+            Log::warning("Validation échouée pour mise à jour livraison: " . json_encode($validator->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
-        Log::info("Livraison créée avec succès par admin: " . $livraison->id);
+        $validatedData = $validator->validated();
 
-        // Charger les relations pour la réponse
-        $livraison->load([
-            'client.user',
-            'demandeLivraison.client.user',
-            'demandeLivraison.destinataire.user',
-            'demandeLivraison.colis',
-            'livreurRamasseur.user',
-            'livreurDistributeur.user'
-        ]);
+        try {
+            DB::beginTransaction();
 
+            $livraison = $this->findLivraison($id);
+
+            if (!$livraison) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Livraison introuvable',
+                ], 404);
+            }
+
+            $demande = $livraison->demandeLivraison;
+
+            // 1. Mettre à jour la livraison
+            $livraisonFields = array_intersect_key($validatedData, array_flip([
+                'client_id',
+                'livreur_distributeur_id',
+                'livreur_ramasseur_id',
+                'bordereau_id',
+                'navette_id',
+                'code_pin',
+                'date_ramassage',
+                'date_livraison',
+                'status',
+                'payment_status'
+            ]));
+
+            if (!empty($livraisonFields)) {
+                $livraison->update($livraisonFields);
+                Log::info("Livraison mise à jour avec les champs: ", $livraisonFields);
+            }
+
+            // 2. Mettre à jour la demande de livraison si existe
+            if ($demande) {
+                $demandeFields = array_intersect_key($validatedData, array_flip([
+                    'addresse_depot',
+                    'addresse_delivery',
+                    'info_additionnel',
+                    'prix',
+                    'wilaya_depot',
+                    'commune_depot',
+                    'wilaya',
+                    'commune',
+                    'type_livraison',
+                    'prestation',
+                    'depose_au_depot',
+                    'lat_depot',
+                    'lng_depot',
+                    'lat_delivery',
+                    'lng_delivery'
+                ]));
+
+                if (!empty($demandeFields)) {
+                    $demande->update($demandeFields);
+                    Log::info("Demande livraison mise à jour avec les champs: ", $demandeFields);
+                }
+            }
+
+            // 3. Mettre à jour le colis si existe
+            $colis = $demande ? $demande->colis : null;
+            if ($colis) {
+                $colisFields = [];
+                if (isset($validatedData['colis_label'])) $colisFields['colis_label'] = $validatedData['colis_label'];
+                if (isset($validatedData['colis_poids'])) $colisFields['poids'] = $validatedData['colis_poids'];
+                if (isset($validatedData['colis_type'])) $colisFields['colis_type'] = $validatedData['colis_type'];
+                if (isset($validatedData['colis_prix'])) $colisFields['colis_prix'] = $validatedData['colis_prix'];
+
+                if (!empty($colisFields)) {
+                    $colis->update($colisFields);
+                    Log::info("Colis mis à jour avec les champs: ", $colisFields);
+                }
+            }
+
+            // Journaliser la modification
+            $this->logLivraisonModification($livraison, auth()->id(), $validatedData);
+
+            DB::commit();
+
+            // Recharger toutes les relations
+            $livraison->load([
+                'client.user',
+                'demandeLivraison.client.user',
+                'demandeLivraison.destinataire.user',
+                'demandeLivraison.colis',
+                'livreurRamasseur.user',
+                'livreurDistributeur.user'
+            ]);
+
+            Log::info("Livraison mise à jour avec succès: " . $id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Livraison mise à jour avec succès',
+                'data' => $livraison
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Erreur lors de la mise à jour de la livraison {$id}: " . $e->getMessage());
+            Log::error("Trace: " . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour de la livraison',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Journaliser les modifications d'une livraison
+     */
+    private function logLivraisonModification($livraison, $adminId, $changes)
+    {
+        try {
+            // Optionnel: créer une table 'livraison_historique' pour tracer les modifications
+            // Pour l'instant, on log simplement dans les logs
+            Log::info("LIVRAISON MODIFIEE", [
+                'livraison_id' => $livraison->id,
+                'admin_id' => $adminId,
+                'changes' => $changes,
+                'timestamp' => now()
+            ]);
+        } catch (\Exception $e) {
+            // Ne pas bloquer si le logging échoue
+            Log::warning("Erreur lors du logging de modification: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Récupérer les clients pour le select (admin)
+     */
+    public function getClientsForSelect(): JsonResponse
+    {
+        $clients = Client::with('user')->get()->map(function ($client) {
+            return [
+                'id' => $client->id,
+                'label' => trim(($client->user?->prenom ?? '') . ' ' . ($client->user?->nom ?? '')),
+                'telephone' => $client->user?->telephone ?? '',
+                'email' => $client->user?->email ?? '',
+            ];
+        });
+
+        return response()->json($clients, 200);
+    }
+
+    /**
+     * Récupérer les livreurs pour le select (admin)
+     */
+    public function getLivreursForSelect(): JsonResponse
+    {
+        $livreurs = Livreur::with('user')->where('desactiver', false)->get()->map(function ($livreur) {
+            return [
+                'id' => $livreur->id,
+                'label' => trim(($livreur->user?->prenom ?? '') . ' ' . ($livreur->user?->nom ?? '')),
+                'telephone' => $livreur->user?->telephone ?? '',
+                'type' => $livreur->type,
+            ];
+        });
+
+        return response()->json($livreurs, 200);
+    }
+
+    /**
+     * Récupérer l'historique des statuts d'une livraison
+     */
+    public function getHistory($id): JsonResponse
+    {
+        // Optionnel: implémenter avec une table d'historique
+        // Pour l'instant, retourner un tableau vide
         return response()->json([
             'success' => true,
-            'message' => 'Livraison créée avec succès',
-            'data' => $livraison
-        ], 201);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error("Erreur lors de la création de la livraison: " . $e->getMessage());
-        Log::error("Trace: " . $e->getTraceAsString());
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Erreur lors de la création de la livraison',
-            'error' => $e->getMessage(),
-        ], 500);
-    }
-}
-
-/**
- * Créer ou récupérer un destinataire
- */
-private function createOrGetDestinataire($data)
-{
-    $user = null;
-
-    // Chercher par email
-    if (!empty($data['destinataire_email'])) {
-        $user = User::where('email', $data['destinataire_email'])->first();
+            'data' => []
+        ], 200);
     }
 
-    // Chercher par téléphone
-    if (!$user && !empty($data['destinataire_telephone'])) {
-        $user = User::where('telephone', $data['destinataire_telephone'])->first();
+
+    /**
+     * Créer une nouvelle livraison (admin)
+     */
+    public function store(Request $request): JsonResponse
+    {
+        Log::info("Admin - Début création d'une nouvelle livraison");
+
+        $validator = Validator::make($request->all(), [
+            // Client
+            'client_id' => 'required|string|exists:clients,id',
+
+            // Livreurs
+            'livreur_ramasseur_id' => 'nullable|string|exists:livreurs,id',
+            'livreur_distributeur_id' => 'nullable|string|exists:livreurs,id',
+
+            // Statuts
+            'status' => 'required|string|in:en_attente,prise_en_charge_ramassage,ramasse,en_transit,prise_en_charge_livraison,livre,annule',
+            'payment_status' => 'required|string|in:pending,available,in_transit,paid',
+
+            // Dates
+            'date_ramassage' => 'nullable|date',
+            'date_livraison' => 'nullable|date',
+
+            // Destinataire
+            'destinataire_nom' => 'required|string|max:255',
+            'destinataire_email' => 'nullable|email|max:255',
+            'destinataire_telephone' => 'required|string|max:20',
+
+            // Adresses
+            'addresse_depot' => 'nullable|string|max:500',
+            'addresse_delivery' => 'required|string|max:500',
+            'wilaya_depot' => 'nullable|string|max:255',
+            'commune_depot' => 'nullable|string|max:255',
+            'wilaya' => 'required|string|max:255',
+            'commune' => 'required|string|max:255',
+
+            // Colis
+            'colis_label' => 'nullable|string|max:255',
+            'colis_poids' => 'required|numeric|min:0.1',
+            'colis_type' => 'nullable|string|max:255',
+            'colis_prix' => 'nullable|numeric|min:0',
+
+            // Prix
+            'prix' => 'required|numeric|min:0',
+
+            // Mode dépôt
+            'depose_au_depot' => 'boolean',
+
+            // Informations supplémentaires
+            'info_additionnel' => 'nullable|string',
+
+            // Champs manquants
+            'type_livraison' => 'nullable|string|in:Livraison,Échange,Pick-up',
+            'prestation' => 'nullable|string|in:A domicile,Stop Desk',
+            'lat_depot' => 'nullable|numeric',
+            'lng_depot' => 'nullable|numeric',
+            'lat_delivery' => 'nullable|numeric',
+            'lng_delivery' => 'nullable|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            Log::warning("Validation échouée pour création livraison: " . json_encode($validator->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validatedData = $validator->validated();
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Créer ou récupérer le destinataire
+            $destinataire = $this->createOrGetDestinataire($validatedData);
+
+            // 2. Créer le colis
+            $colis = $this->createColis($validatedData);
+
+            // 3. Créer la demande de livraison
+            $demande = $this->createDemandeLivraison($validatedData, $destinataire->id, $colis->id);
+
+            // 4. Déterminer le statut initial en fonction du mode dépôt
+            $isDepotClient = $validatedData['depose_au_depot'] ?? false;
+            $initialStatus = $isDepotClient ? 'en_transit' : ($validatedData['status'] ?? 'en_attente');
+
+            // 5. Créer la livraison
+            $livraison = Livraison::create([
+                'id' => (string) Str::uuid(),
+                'client_id' => $validatedData['client_id'],
+                'demande_livraisons_id' => $demande->id,
+                'livreur_distributeur_id' => $validatedData['livreur_distributeur_id'] ?? null,
+                'livreur_ramasseur_id' => $validatedData['livreur_ramasseur_id'] ?? null,
+                'code_pin' => $this->generateUniquePin(),
+                'date_ramassage' => $validatedData['date_ramassage'] ?? null,
+                'date_livraison' => $validatedData['date_livraison'] ?? null,
+                'status' => $initialStatus,
+                'payment_status' => $validatedData['payment_status'] ?? 'pending',
+            ]);
+
+            DB::commit();
+
+            Log::info("Livraison créée avec succès par admin: " . $livraison->id);
+
+            // Charger les relations pour la réponse
+            $livraison->load([
+                'client.user',
+                'demandeLivraison.client.user',
+                'demandeLivraison.destinataire.user',
+                'demandeLivraison.colis',
+                'livreurRamasseur.user',
+                'livreurDistributeur.user'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Livraison créée avec succès',
+                'data' => $livraison
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Erreur lors de la création de la livraison: " . $e->getMessage());
+            Log::error("Trace: " . $e->getTraceAsString());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création de la livraison',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    /**
+     * Créer ou récupérer un destinataire
+     */
+    private function createOrGetDestinataire($data)
+    {
+        $user = null;
+
+        // Chercher par email
+        if (!empty($data['destinataire_email'])) {
+            $user = User::where('email', $data['destinataire_email'])->first();
+        }
+
+        // Chercher par téléphone
+        if (!$user && !empty($data['destinataire_telephone'])) {
+            $user = User::where('telephone', $data['destinataire_telephone'])->first();
+        }
+
+        // Créer un nouvel utilisateur si non trouvé
+        if (!$user) {
+            $nameParts = explode(' ', $data['destinataire_nom'], 2);
+            $prenom = $nameParts[0] ?? '';
+            $nom = $nameParts[1] ?? '';
+
+            $user = User::create([
+                'nom' => $nom,
+                'prenom' => $prenom,
+                'email' => $data['destinataire_email'] ?? null,
+                'telephone' => $data['destinataire_telephone'],
+                'password' => bcrypt(Str::random(10)),
+                'role' => 'client_destinataire',
+                'actif' => true,
+            ]);
+        }
+
+        // Créer ou récupérer le client destinataire
+        return Client::firstOrCreate(
+            ['user_id' => $user->id],
+            ['status' => 'active']
+        );
     }
 
-    // Créer un nouvel utilisateur si non trouvé
-    if (!$user) {
-        $nameParts = explode(' ', $data['destinataire_nom'], 2);
-        $prenom = $nameParts[0] ?? '';
-        $nom = $nameParts[1] ?? '';
+    /**
+     * Créer un colis
+     */
+    private function createColis($data)
+    {
+        $colisLabel = $data['colis_label'] ?? 'COLIS-' . strtoupper(uniqid());
 
-        $user = User::create([
-            'nom' => $nom,
-            'prenom' => $prenom,
-            'email' => $data['destinataire_email'] ?? null,
-            'telephone' => $data['destinataire_telephone'],
-            'password' => bcrypt(Str::random(10)),
-            'role' => 'client_destinataire',
-            'actif' => true,
+        return Colis::create([
+            'poids' => $data['colis_poids'],
+            'colis_type' => $data['colis_type'] ?? 'Standard',
+            'colis_label' => $colisLabel,
+            'colis_prix' => $data['colis_prix'] ?? 0,
         ]);
     }
 
-    // Créer ou récupérer le client destinataire
-    return Client::firstOrCreate(
-        ['user_id' => $user->id],
-        ['status' => 'active']
-    );
-}
+    /**
+     * Créer une demande de livraison
+     */
+    private function createDemandeLivraison($data, $destinataireId, $colisId)
+    {
+        $isDepotClient = $data['depose_au_depot'] ?? false;
 
-/**
- * Créer un colis
- */
-private function createColis($data)
-{
-    $colisLabel = $data['colis_label'] ?? 'COLIS-' . strtoupper(uniqid());
+        return DemandeLivraison::create([
+            'client_id' => $data['client_id'],
+            'destinataire_id' => $destinataireId,
+            'colis_id' => $colisId,
+            'depose_au_depot' => $isDepotClient,
+            'addresse_depot' => $data['addresse_depot'] ?? null,
+            'addresse_delivery' => $data['addresse_delivery'],
+            'info_additionnel' => $data['info_additionnel'] ?? null,
+            'prix' => $data['prix'],
+            'wilaya_depot' => $data['wilaya_depot'] ?? null,
+            'commune_depot' => $data['commune_depot'] ?? null,
+            'wilaya' => $data['wilaya'],
+            'commune' => $data['commune'],
+            'type_livraison' => $data['type_livraison'] ?? 'Livraison',
+            'prestation' => $data['prestation'] ?? 'A domicile',
+            'lat_depot' => $data['lat_depot'] ?? null,
+            'lng_depot' => $data['lng_depot'] ?? null,
+            'lat_delivery' => $data['lat_delivery'] ?? null,
+            'lng_delivery' => $data['lng_delivery'] ?? null,
+        ]);
+    }
 
-    return Colis::create([
-        'poids' => $data['colis_poids'],
-        'colis_type' => $data['colis_type'] ?? 'Standard',
-        'colis_label' => $colisLabel,
-        'colis_prix' => $data['colis_prix'] ?? 0,
-    ]);
-}
+    /**
+     * Générer un code PIN unique
+     */
+    public function generatePin(): JsonResponse
+    {
+        return response()->json([
+            'pin' => $this->generateUniquePin()
+        ], 200);
+    }
 
-/**
- * Créer une demande de livraison
- */
-private function createDemandeLivraison($data, $destinataireId, $colisId)
-{
-    $isDepotClient = $data['depose_au_depot'] ?? false;
+    /**
+     * Générer un code PIN unique à 5 chiffres
+     */
+    private function generateUniquePin(): string
+    {
+        do {
+            $pin = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
+        } while (Livraison::where('code_pin', $pin)->exists());
 
-    return DemandeLivraison::create([
-        'client_id' => $data['client_id'],
-        'destinataire_id' => $destinataireId,
-        'colis_id' => $colisId,
-        'depose_au_depot' => $isDepotClient,
-        'addresse_depot' => $data['addresse_depot'] ?? null,
-        'addresse_delivery' => $data['addresse_delivery'],
-        'info_additionnel' => $data['info_additionnel'] ?? null,
-        'prix' => $data['prix'],
-        'wilaya_depot' => $data['wilaya_depot'] ?? null,
-        'commune_depot' => $data['commune_depot'] ?? null,
-        'wilaya' => $data['wilaya'],
-        'commune' => $data['commune'],
-    ]);
-}
-
-/**
- * Générer un code PIN unique
- */
-public function generatePin(): JsonResponse
-{
-    return response()->json([
-        'pin' => $this->generateUniquePin()
-    ], 200);
-}
-
-/**
- * Générer un code PIN unique à 5 chiffres
- */
-private function generateUniquePin(): string
-{
-    do {
-        $pin = str_pad(random_int(0, 99999), 5, '0', STR_PAD_LEFT);
-    } while (Livraison::where('code_pin', $pin)->exists());
-
-    return $pin;
-}
-
-
-
+        return $pin;
+    }
 }
