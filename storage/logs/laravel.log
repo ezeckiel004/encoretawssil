@@ -35180,3 +35180,30 @@
 [2026-06-11 14:05:10] local.INFO: Début génération HTML pour impression - ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
 [2026-06-11 14:05:10] local.INFO: Données préparées pour HTML - Livraison: ba683405-6917-48ec-ba0f-4aa833d8ab57  
 [2026-06-11 14:05:10] local.INFO: HTML généré avec succès - Taille: 16175 caractères  
+[2026-06-11 14:35:55] local.ERROR: Cannot declare class App\Models\ResponseAvis, because the name is already in use {"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Cannot declare class App\\Models\\ResponseAvis, because the name is already in use at C:\\Users\\DOKI\\Documents\\tawssil_API5\\app\\Models\\ResponseAvis.php:8)
+[stacktrace]
+#0 {main}
+"} 
+[2026-06-11 16:10:38] local.INFO: Récupération de la livraison avec ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:38] local.INFO: Livraison trouvée: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:39] local.INFO: Récupération de la livraison avec ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:39] local.INFO: Livraison trouvée: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:44] local.INFO: Début génération HTML pour impression - ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:44] local.INFO: Données préparées pour HTML - Livraison: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:10:45] local.INFO: HTML généré avec succès - Taille: 16798 caractères  
+[2026-06-11 16:11:12] local.INFO: Début génération HTML pour impression - ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:11:12] local.INFO: Données préparées pour HTML - Livraison: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:11:12] local.INFO: HTML généré avec succès - Taille: 16798 caractères  
+[2026-06-11 16:44:13] local.INFO: Récupération de la livraison avec ID: f922b144-8529-4056-a032-9790e1caa2c4  
+[2026-06-11 16:44:13] local.INFO: Livraison trouvée: f922b144-8529-4056-a032-9790e1caa2c4  
+[2026-06-11 16:44:14] local.INFO: Récupération de la livraison avec ID: f922b144-8529-4056-a032-9790e1caa2c4  
+[2026-06-11 16:44:14] local.INFO: Livraison trouvée: f922b144-8529-4056-a032-9790e1caa2c4  
+[2026-06-11 16:57:35] local.INFO: Admin - Récupération des données pour édition de la livraison ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:57:38] local.INFO: Admin - Récupération des données pour édition de la livraison ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:58:44] local.INFO: Admin - Début mise à jour complète de la livraison ID: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 16:58:44] local.INFO: Livraison mise à jour avec les champs:  {"livreur_distributeur_id":null,"livreur_ramasseur_id":null,"date_ramassage":null,"date_livraison":null} 
+[2026-06-11 16:58:45] local.INFO: Demande livraison mise à jour avec les champs:  {"info_additionnel":"hkbkbknknkkjgkkjknk","prix":"2700","wilaya_depot":"09","commune_depot":"Blida","wilaya":"12","commune":"Bir El Ater"} 
+[2026-06-11 16:58:45] local.INFO: LIVRAISON MODIFIEE {"livraison_id":"ba683405-6917-48ec-ba0f-4aa833d8ab57","admin_id":"c9bada23-308d-4518-a32b-f05ef4a83750","changes":{"livreur_distributeur_id":null,"livreur_ramasseur_id":null,"date_ramassage":null,"date_livraison":null,"info_additionnel":"hkbkbknknkkjgkkjknk","prix":"2700","wilaya_depot":"09","commune_depot":"Blida","wilaya":"12","commune":"Bir El Ater"},"timestamp":"2026-06-11 16:58:45"} 
+[2026-06-11 16:58:45] local.INFO: Livraison mise à jour avec succès: ba683405-6917-48ec-ba0f-4aa833d8ab57  
+[2026-06-11 17:02:48] local.INFO: Admin - Début création d'une nouvelle livraison  
+[2026-06-11 17:02:54] local.INFO: Livraison créée avec succès par admin: 8b4f2a24-9844-4767-8d5f-08da4822129b  

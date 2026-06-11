@@ -61,7 +61,12 @@ class LivraisonController extends Controller
 
             // Récupérer les prix
             $prixColis = (float) ($colis?->colis_prix ?? 0);
-            $prixLivraison = (float) ($demande?->prix ?? 0);
+            $prixLivraisonBase = (float) ($demande?->prix ?? 0);
+            $poidsColis = (float) ($colis?->poids ?? 0);
+
+            // ✅ Appliquer la majoration pour surpoids
+            $prixLivraison = $this->calculerPrixAvecSurpoids($prixLivraisonBase, $poidsColis);
+
             $isLivraisonGratuite = $demande?->livraison_gratuite ?? false;
             $isDepotClient = $demande?->depose_au_depot ?? false;
 
@@ -109,10 +114,13 @@ class LivraisonController extends Controller
                 'bordereau' => $livraison->bordereau_id ? $livraison->bordereau : null,
                 // ✅ NOUVEAUX CHAMPS
                 'prix_colis' => $prixColis,
-                'prix_livraison' => $prixLivraison,
+                'prix_livraison_base' => $prixLivraisonBase,  // Prix de base sans majoration
+                'prix_livraison' => $prixLivraison,           // Prix final avec majoration
+                'poids_colis' => $poidsColis,
+                'supplement_poids' => $poidsColis > 10 ? ceil($poidsColis - 10) * 50 : 0,
                 'livraison_gratuite' => $isLivraisonGratuite,
                 'depose_au_depot' => $isDepotClient,
-                'type_livraison_mode' => $typeLivraison, // "normale", "depose", "gratuite"
+                'type_livraison_mode' => $typeLivraison,
                 'total' => $total,
             ];
         }
@@ -318,17 +326,20 @@ class LivraisonController extends Controller
         $demande = $livraison->demandeLivraison;
         $colis = $demande?->colis;
 
-        // Récupérer les prix (le prix livraison reste inchangé)
+        // Récupérer les prix
         $prixColis = (float) ($colis?->colis_prix ?? 0);
-        $prixLivraison = (float) ($demande?->prix ?? 0);
+        $prixLivraisonBase = (float) ($demande?->prix ?? 0);
+        $poidsColis = (float) ($colis?->poids ?? 0);
+
+        // ✅ Appliquer la majoration pour surpoids
+        $prixLivraison = $this->calculerPrixAvecSurpoids($prixLivraisonBase, $poidsColis);
+
         $isLivraisonGratuite = $demande?->livraison_gratuite ?? false;
 
         // Calculer le total selon le cas
         if ($isLivraisonGratuite) {
-            // Livraison gratuite: total = prix colis - prix livraison (remise sur le colis)
             $total = $prixColis - $prixLivraison;
         } else {
-            // Cas normal: total = prix colis + prix livraison
             $total = $prixColis + $prixLivraison;
         }
 
@@ -357,9 +368,12 @@ class LivraisonController extends Controller
                 'client' => $livraison->client?->user,
                 'commentaires' => $livraison->commentaires,
                 'bordereau' => $livraison->bordereau_id ? $livraison->bordereau : null,
-                // Informations de prix (prix livraison inchangé)
+                // Informations de prix
                 'prix_colis' => $prixColis,
-                'prix_livraison' => $prixLivraison,  // ← Garde sa valeur réelle
+                'prix_livraison_base' => $prixLivraisonBase,
+                'prix_livraison' => $prixLivraison,
+                'poids_colis' => $poidsColis,
+                'supplement_poids' => $poidsColis > 10 ? ceil($poidsColis - 10) * 50 : 0,
                 'livraison_gratuite' => $isLivraisonGratuite,
                 'total' => $total,
             ],
@@ -931,6 +945,9 @@ class LivraisonController extends Controller
         }
     }
 
+    /**
+     * Générer un PDF pour un bordereau unique
+     */
     public function generateBordereauPDF($id)
     {
         Log::info("Début génération PDF bordereau - ID: " . $id);
@@ -946,24 +963,36 @@ class LivraisonController extends Controller
 
             $data = $this->preparePrintData($livraison);
 
-            $pdf = Pdf::loadView('pdf.bordereau', $data);
+            // ✅ Générer le HTML à partir de la vue
+            $html = View::make('pdf.bordereau', $data)->render();
 
+            // ✅ Forcer l'encodage UTF-8 pour les caractères spéciaux et arabes
+            $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+
+            // ✅ Charger le HTML dans Dompdf
+            $pdf = Pdf::loadHTML($html);
+
+            // ✅ Définir le format personnalisé (100mm x 150mm)
             $pdf->setPaper([0, 0, 283.464, 425.197], 'portrait');
 
+            // ✅ Définir explicitement les options avec police pour support arabe
             $pdf->setOptions([
-                'defaultFont'             => 'DejaVuSans',
-                'isHtml5ParserEnabled'    => true,
-                'isRemoteEnabled'         => true,
-                'dpi'                     => 96,
-                'margin-top'              => 0,
-                'margin-right'            => 0,
-                'margin-bottom'           => 0,
-                'margin-left'             => 0,
+                'defaultFont' => 'DejaVuSans',
+                'fontDir' => storage_path('fonts/'),
+                'fontCache' => storage_path('fonts/'),
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => false,
+                'dpi' => 150,
+                'margin-top' => 0,
+                'margin-right' => 0,
+                'margin-bottom' => 0,
+                'margin-left' => 0,
                 'isFontSubsettingEnabled' => true,
-                'defaultPaperSize'        => [0, 0, 283.464, 425.197],
-                'tempDir'                 => storage_path('app/temp'),
+                'tempDir' => storage_path('app/temp'),
             ]);
 
+            // ✅ Forcer l'encodage UTF-8 dans Dompdf
             $pdf->getDomPDF()->set_option('default_charset', 'UTF-8');
             $pdf->getDomPDF()->set_option('font_height_ratio', '1.0');
 
@@ -977,7 +1006,7 @@ class LivraisonController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erreur lors de la génération du PDF',
+                'message' => 'Erreur lors de la génération du PDF: ' . $e->getMessage(),
                 'error'   => $e->getMessage(),
             ], 500);
         }
@@ -1122,6 +1151,12 @@ class LivraisonController extends Controller
             $colis = $demande->colis ?? null;
             $client = $demande->client->user ?? null;
 
+            // ✅ Calcul du prix avec surpoids pour l'affichage
+            $prixLivraisonBase = (float) ($demande->prix ?? 0);
+            $poidsColis = (float) ($colis->poids ?? 0);
+            $prixLivraisonFinal = $this->calculerPrixAvecSurpoids($prixLivraisonBase, $poidsColis);
+            $supplementPoids = $poidsColis > 10 ? ceil($poidsColis - 10) * 50 : 0;
+
             $destinataire = null;
             if ($demande->destinataire && $demande->destinataire->user) {
                 $destinataire = $demande->destinataire->user;
@@ -1193,6 +1228,12 @@ class LivraisonController extends Controller
                 'statusLabel' => $statusLabel,
                 'wilayaNumber' => $wilayaInfo['number'],
                 'wilayaName' => $wilayaInfo['name'],
+                // ✅ Ajout des informations de prix avec surpoids
+                'prixLivraisonBase' => $prixLivraisonBase,
+                'prixLivraisonFinal' => $prixLivraisonFinal,
+                'poidsColis' => $poidsColis,
+                'supplementPoids' => $supplementPoids,
+                'afficherSupplement' => $poidsColis > 10,
             ];
         } catch (\Exception $e) {
             Log::error("Erreur préparation données: " . $e->getMessage());
@@ -2695,6 +2736,9 @@ class LivraisonController extends Controller
     /**
      * Générer un PDF avec plusieurs bordereaux (assemblage simple)
      */
+    /**
+     * Générer un PDF avec plusieurs bordereaux (assemblage simple)
+     */
     public function generateMultipleBordereauxPDF(Request $request)
     {
         try {
@@ -2718,12 +2762,13 @@ class LivraisonController extends Controller
 
             foreach ($livraisons as $livraison) {
                 $data = $this->preparePrintData($livraison);
-                // ✅ Passer le flag pour l'impression multiple
                 $data['isMultiple'] = true;
-
                 $html = View::make('pdf.bordereau', $data)->render();
                 $allHtml .= $html;
             }
+
+            // ✅ Forcer l'encodage UTF-8 pour tout le HTML
+            $allHtml = mb_convert_encoding($allHtml, 'HTML-ENTITIES', 'UTF-8');
 
             $wrapperHtml = '<!DOCTYPE html>
         <html>
@@ -2731,36 +2776,33 @@ class LivraisonController extends Controller
             <meta charset="UTF-8">
             <title>Bordereaux de livraison - ' . $total . ' colis</title>
             <style>
-                @page {
-                    size: 100mm 150mm;
-                    margin: 0mm;
-                }
-                @media print {
-                    body {
-                        margin: 0;
-                        padding: 0;
-                    }
-                }
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
+                @page { size: 100mm 150mm; margin: 0mm; }
+                @media print { body { margin: 0; padding: 0; } }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: DejaVuSans, Arial, Helvetica, sans-serif; background: white; }
             </style>
         </head>
-        <body>
-            ' . $allHtml . '
-        </body>
+        <body>' . $allHtml . '</body>
         </html>';
 
+            // ✅ Charger le HTML dans Dompdf
             $pdf = Pdf::loadHTML($wrapperHtml);
+
+            // ✅ Format A4 pour l'impression multiple
             $pdf->setPaper('a4', 'portrait');
+
             $pdf->setOptions([
                 'defaultFont' => 'DejaVuSans',
+                'fontDir' => storage_path('fonts/'),
+                'fontCache' => storage_path('fonts/'),
                 'isRemoteEnabled' => true,
                 'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => false,
                 'dpi' => 150,
             ]);
+
+            // ✅ Forcer l'encodage UTF-8
+            $pdf->getDomPDF()->set_option('default_charset', 'UTF-8');
 
             $fileName = 'bordereaux_' . now()->format('Y-m-d_His') . '.pdf';
 
@@ -2800,46 +2842,27 @@ class LivraisonController extends Controller
 
             foreach ($livraisons as $livraison) {
                 $data = $this->preparePrintData($livraison);
-                // ✅ Passer le flag pour l'impression multiple
                 $data['isMultiple'] = true;
-
                 $html = View::make('pdf.bordereau', $data)->render();
                 $allHtml .= $html;
             }
 
-            // ✅ Envelopper dans une page HTML complète
+            // ✅ Forcer l'encodage UTF-8 pour tout le HTML
+            $allHtml = mb_convert_encoding($allHtml, 'HTML-ENTITIES', 'UTF-8');
+
             $fullHtml = '<!DOCTYPE html>
         <html>
         <head>
             <meta charset="UTF-8">
             <title>Bordereaux de livraison - ' . $total . ' colis</title>
             <style>
-                @page {
-                    size: 100mm 150mm;
-                    margin: 0mm;
-                }
-                @media print {
-                    html, body {
-                        margin: 0;
-                        padding: 0;
-                        width: 100%;
-                        height: auto;
-                    }
-                }
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-                body {
-                    font-family: Arial, Helvetica, sans-serif;
-                    background: white;
-                }
+                @page { size: 100mm 150mm; margin: 0mm; }
+                @media print { html, body { margin: 0; padding: 0; } }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: DejaVuSans, Arial, Helvetica, sans-serif; background: white; }
             </style>
         </head>
-        <body>
-            ' . $allHtml . '
-        </body>
+        <body>' . $allHtml . '</body>
         </html>';
 
             return response()->json([
@@ -2855,5 +2878,26 @@ class LivraisonController extends Controller
                 'message' => 'Erreur: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Calculer le prix de livraison avec prise en compte du surpoids
+     *
+     * @param float $prixLivraisonBase Prix de livraison de base
+     * @param float $poidsColis Poids du colis en kg
+     * @return float Prix final après ajustement
+     */
+    private function calculerPrixAvecSurpoids(float $prixLivraisonBase, float $poidsColis): float
+    {
+        $seuilPoids = 10.0; // 10 kg
+        $prixParKgSupplementaire = 50; // 50 DA par kg supplémentaire
+
+        if ($poidsColis > $seuilPoids) {
+            $kgSupplementaires = ceil($poidsColis - $seuilPoids);
+            $supplement = $kgSupplementaires * $prixParKgSupplementaire;
+            return $prixLivraisonBase + $supplement;
+        }
+
+        return $prixLivraisonBase;
     }
 }

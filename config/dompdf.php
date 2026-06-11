@@ -20,12 +20,18 @@ return [
         'pdf_backend' => 'CPDF',
         'default_media_type' => 'screen',
         'default_paper_size' => 'a4',
+        // ✅ Police par défaut modifiée pour supporter les caractères arabes
         'default_font' => 'dejavu sans',
-        'dpi' => 96,
+        'dpi' => 150, // ✅ Augmenté de 96 à 150 pour meilleure qualité
         'enable_php' => false,
         'enable_javascript' => true,
         'enable_remote' => true,
         'enable_html5_parser' => true,
         'font_height_ratio' => 1.1,
+        // ✅ Ajout d'options supplémentaires pour les caractères internationaux
+        'isPhpEnabled' => false,
+        'isRemoteEnabled' => true,
+        'isHtml5ParserEnabled' => true,
+        'isFontSubsettingEnabled' => false,
     ],
 ];

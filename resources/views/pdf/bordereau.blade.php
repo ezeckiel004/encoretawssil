@@ -24,10 +24,10 @@
             padding: 0 !important;
             width: 100mm !important;
             background: #fff;
-            font-family: DejaVuSans, Arial, Helvetica, sans-serif !important;
+            font-family: DejaVuSans, DejaVuSansMono, 'Noto Sans Arabic', Arial, Helvetica, sans-serif !important;
         }
 
-        /* ✅ Style pour l'impression simple */
+        /* Style pour l'impression simple */
         .bordereau-single {
             width: 100mm;
             height: 150mm;
@@ -35,7 +35,7 @@
             page-break-inside: avoid;
         }
 
-        /* ✅ Style pour l'assemblage multiple */
+        /* Style pour l'assemblage multiple */
         .bordereau-multiple {
             width: 100mm;
             height: 150mm;
@@ -59,7 +59,7 @@
             flex-direction: column;
         }
 
-        /* HEADER CORRIGÉ - TEXTE DÉCALÉ VERS LA GAUCHE */
+        /* HEADER */
         .header {
             display: flex;
             justify-content: space-between;
@@ -136,16 +136,17 @@
             align-items: center;
         }
 
+        /* Taille du numéro de wilaya REDUITE (28px) */
         .wilaya {
-            font-size: 40px;
+            font-size: 28px;
             font-weight: 900;
-            line-height: 0.9;
+            line-height: 1;
             color: #1e40af;
             margin-bottom: 2px;
         }
 
         .city {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
             margin-top: 1px;
             margin-bottom: 2px;
@@ -230,6 +231,11 @@
             font-weight: bold;
         }
 
+        .supplement-row td {
+            background-color: #fff3e0;
+            color: #e65100;
+        }
+
         /* FOOTER */
         .footer {
             margin-top: auto;
@@ -259,10 +265,6 @@
             font-size: 10px;
         }
 
-        .client-name {
-            font-weight: bold;
-        }
-
         .commune-line {
             font-size: 10.5px;
             margin-top: 1px;
@@ -277,7 +279,6 @@
             font-weight: normal;
         }
 
-        /* Pour l'impression */
         @media print {
             body {
                 margin: 0;
@@ -297,10 +298,9 @@
 </head>
 
 <body>
-    {{-- ✅ Conteneur avec classe conditionnelle pour l'impression multiple --}}
     <div class="{{ isset($isMultiple) && $isMultiple ? 'bordereau-multiple' : 'bordereau-single' }}">
         <div class="label">
-            <!-- HEADER CORRIGÉ AVEC TEXTE DÉCALÉ VERS LA GAUCHE -->
+            <!-- HEADER -->
             <div class="header">
                 <div class="logo">
                     @php
@@ -328,19 +328,29 @@
             <div class="main-info">
                 <div class="left-info">
                     <div class="expediteur-block">
-                        <div><b>Expéditeur :</b> {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }}</div>
+                        <div><b>Expéditeur :</b>
+                            {!! htmlspecialchars_decode(e($client->prenom ?? ''), ENT_QUOTES) !!}
+                            {!! htmlspecialchars_decode(e($client->nom ?? ''), ENT_QUOTES) !!}
+                        </div>
                         <div><b>Tél :</b> {{ $client->telephone ?? 'N/A' }}</div>
-                        <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_depot ?? 'Non spécifiée', 30) }}</div>
+                        <div class="address-line"><b>Adresse :</b>
+                            {{ Str::limit(htmlspecialchars_decode(e($demande->addresse_depot ?? 'Non spécifiée'), ENT_QUOTES), 30) }}
+                        </div>
                     </div>
 
                     <div class="destinataire-block">
-                        <div><b>Destinataire :</b> {{ $destinataire->prenom ?? '' }} {{ $destinataire->nom ?? '' }}</div>
+                        <div><b>Destinataire :</b>
+                            {!! htmlspecialchars_decode(e($destinataire->prenom ?? ''), ENT_QUOTES) !!}
+                            {!! htmlspecialchars_decode(e($destinataire->nom ?? ''), ENT_QUOTES) !!}
+                        </div>
                         <div><b>Tél :</b> {{ $destinataire->telephone ?? 'N/A' }}</div>
-                        <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_delivery ?? 'Non spécifiée', 30) }}</div>
+                        <div class="address-line"><b>Adresse :</b>
+                            {{ Str::limit(htmlspecialchars_decode(e($demande->addresse_delivery ?? 'Non spécifiée'), ENT_QUOTES), 30) }}
+                        </div>
                         @if(!empty($demande->commune))
                         <div class="commune-line">
                             <span class="commune-label">Commune :</span>
-                            <span class="commune-value">{{ Str::limit($demande->commune, 20) }}</span>
+                            <span class="commune-value">{{ Str::limit(htmlspecialchars_decode(e($demande->commune), ENT_QUOTES), 20) }}</span>
                         </div>
                         @endif
                     </div>
@@ -356,7 +366,7 @@
                     <div class="wilaya">{{ $wilayaNumber }}</div>
                     @endif
                     @if(!empty($wilayaName))
-                    <div class="city">{{ Str::limit(ucwords(strtolower($wilayaName)), 12) }}</div>
+                    <div class="city">{{ Str::limit(ucwords(strtolower(htmlspecialchars_decode(e($wilayaName), ENT_QUOTES))), 12) }}</div>
                     @endif
                     <div class="phone-right">
                         {{ $destinataire->telephone ?? 'N/A' }}
@@ -378,25 +388,46 @@
                     <th>Prix</th>
                 </tr>
                 <tr>
-                    <td>
-                        {{ Str::limit($colis->colis_type ?? 'Colis', 15) }}
+                    <td style="text-align: left;">
+                        {{ Str::limit(htmlspecialchars_decode(e($colis->colis_type ?? 'Colis'), ENT_QUOTES), 15) }}
                         @if($colis->poids ?? false)
                         ({{ $colis->poids }} kg)
                         @endif
                     </td>
-                    <td>{{ number_format($colis->colis_prix ?? 0, 0, ',', ' ') }} DA</td>
+                    <td style="text-align: right;">{{ number_format($colis->colis_prix ?? 0, 0, ',', ' ') }} DA</td>
                 </tr>
-                @if($demande->prix ?? false)
-                <tr class="livraison-price-row">
-                    <td colspan="2" style="text-align: left; font-size: 9.5px;">
-                        <strong>Frais :</strong> {{ number_format($demande->prix, 0, ',', ' ') }} DA
+
+                {{-- Affichage du supplément pour surpoids (>10kg) --}}
+                @if(isset($afficherSupplement) && $afficherSupplement)
+                <tr class="supplement-row">
+                    <td style="text-align: left;">
+                        <strong>⚡ Supplément surpoids</strong><br>
+                        <span style="font-size: 8px;">({{ $poidsColis }} kg - 10 kg = +{{ ceil($poidsColis - 10) }} kg × 50 DA)</span>
+                    </td>
+                    <td style="text-align: right; color: #e65100; font-weight: bold;">
+                        + {{ number_format($supplementPoids, 0, ',', ' ') }} DA
                     </td>
                 </tr>
                 @endif
+
+                @if($demande->prix ?? false)
+                <tr class="livraison-price-row">
+                    <td colspan="2" style="text-align: left; font-size: 9.5px;">
+                        <strong>Frais de livraison :</strong>
+                        @if(isset($afficherSupplement) && $afficherSupplement)
+                            <span style="text-decoration: line-through; color: #999;">{{ number_format($prixLivraisonBase, 0, ',', ' ') }} DA</span>
+                            → <strong>{{ number_format($prixLivraisonFinal, 0, ',', ' ') }} DA</strong>
+                        @else
+                            <strong>{{ number_format($prixLivraisonFinal, 0, ',', ' ') }} DA</strong>
+                        @endif
+                    </td>
+                </tr>
+                @endif
+
                 @if($demande->info_additionnel ?? false)
                 <tr>
                     <td colspan="2" style="text-align: left; font-size: 9px;">
-                        <strong>Note :</strong> {{ Str::limit($demande->info_additionnel, 30) }}
+                        <strong>Note :</strong> {{ Str::limit(htmlspecialchars_decode(e($demande->info_additionnel), ENT_QUOTES), 30) }}
                     </td>
                 </tr>
                 @endif
@@ -404,7 +435,8 @@
 
             <!-- FOOTER -->
             <div class="footer">
-                Je déclare {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }} que les détails déclarés sur ce bordereau sont corrects et que <br> le colis ne contient
+                Je déclare {!! htmlspecialchars_decode(e($client->prenom ?? ''), ENT_QUOTES) !!} {!! htmlspecialchars_decode(e($client->nom ?? ''), ENT_QUOTES) !!}
+                que les détails déclarés sur ce bordereau sont corrects et que <br> le colis ne contient
                 aucun produit dangereux ou interdit par la loi.
 
                 <div class="date-ref">
