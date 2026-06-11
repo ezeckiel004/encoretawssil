@@ -29,6 +29,7 @@ class DemandeLivraison extends Model
         'lat_delivery',
         'lng_delivery',
         'depose_au_depot',
+        'livraison_gratuite',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class DemandeLivraison extends Model
         'lng_depot'    => 'double',
         'lat_delivery' => 'double',
         'lng_delivery' => 'double',
+        'livraison_gratuite' => 'boolean',
     ];
 
     public $incrementing = false;

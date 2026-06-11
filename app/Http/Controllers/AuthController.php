@@ -86,7 +86,8 @@ class AuthController extends Controller
                 ]);
             }
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+            $deviceName = $request->header('User-Agent', 'unknown_device');
+            $token = $user->createToken($deviceName)->plainTextToken;
 
             DB::commit();
 
@@ -110,7 +111,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Connexion d'un utilisateur - Vérification unique sur le champ 'actif'
+     * Connexion d'un utilisateur - Permet les connexions multiples
      */
     public function login(Request $request): JsonResponse
     {
@@ -118,6 +119,7 @@ class AuthController extends Controller
             'email'     => 'nullable|email|required_without:telephone',
             'telephone' => 'nullable|string|required_without:email',
             'password'  => 'required|string',
+            'device_name' => 'nullable|string|max:255', // Optionnel: nom personnalisé pour l'appareil
         ]);
 
         if ($validator->fails()) {
@@ -145,7 +147,7 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            // UNIQUE VÉRIFICATION : sur le champ 'actif'
+            // Vérification du compte suspendu
             if (! $user->actif) {
                 return response()->json([
                     'success' => false,
@@ -154,17 +156,20 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            // Révoquer tous les tokens existants
-            $user->tokens()->delete();
+            // NE PAS supprimer les tokens existants pour permettre les connexions multiples
+            // $user->tokens()->delete(); // ← Cette ligne est commentée/supprimée
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+            // Créer un nouveau token pour ce nouvel appareil
+            $deviceName = $request->device_name ?? $request->header('User-Agent', 'unknown_device');
+            $token = $user->createToken($deviceName)->plainTextToken;
 
             $user->load('client', 'livreur', 'gestionnaire');
 
             return response()->json([
                 'user'       => $user,
                 'token'      => $token,
-                'token_type' => 'Bearer'
+                'token_type' => 'Bearer',
+                'message'    => 'Connexion réussie'
             ], 200);
 
         } catch (\Exception $e) {
@@ -256,11 +261,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Déconnexion d'un utilisateur
+     * Déconnexion d'un utilisateur (uniquement l'appareil actuel)
      */
     public function logout(Request $request): JsonResponse
     {
         try {
+            // Supprimer UNIQUEMENT le token actuel, pas tous
             $request->user()->currentAccessToken()->delete();
 
             return response()->json([
@@ -295,6 +301,80 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Erreur lors de la déconnexion',
                 'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Lister tous les appareils connectés
+     */
+    public function listDevices(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $currentTokenId = $user->currentAccessToken()->id;
+
+            $tokens = $user->tokens()->get(['id', 'name', 'last_used_at', 'created_at']);
+
+            return response()->json([
+                'success' => true,
+                'data' => $tokens->map(function ($token) use ($currentTokenId) {
+                    return [
+                        'id' => $token->id,
+                        'device_name' => $token->name ?? 'Appareil inconnu',
+                        'is_current' => $token->id === $currentTokenId,
+                        'last_used_at' => $token->last_used_at,
+                        'connected_since' => $token->created_at,
+                    ];
+                }),
+                'total_devices' => $tokens->count()
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur listDevices: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des appareils',
+            ], 500);
+        }
+    }
+
+    /**
+     * Déconnecter un appareil spécifique (par son token ID)
+     */
+    public function revokeDevice(Request $request, $tokenId): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $token = $user->tokens()->where('id', $tokenId)->first();
+
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Appareil non trouvé',
+                ], 404);
+            }
+
+            // Ne pas permettre de supprimer l'appareil actuel
+            if ($token->id === $user->currentAccessToken()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous ne pouvez pas déconnecter l\'appareil actuel. Utilisez la déconnexion classique.',
+                ], 400);
+            }
+
+            $token->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Appareil déconnecté avec succès',
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur revokeDevice: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la déconnexion de l\'appareil',
             ], 500);
         }
     }
@@ -452,12 +532,12 @@ class AuthController extends Controller
                 'password' => Hash::make($request->new_password),
             ]);
 
-            // Révoquer tous les tokens pour forcer la reconnexion
+            // Révoquer tous les tokens pour forcer la reconnexion sur tous les appareils
             $user->tokens()->delete();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Mot de passe changé avec succès. Veuillez vous reconnecter.',
+                'message' => 'Mot de passe changé avec succès. Veuillez vous reconnecter sur tous vos appareils.',
             ], 200);
 
         } catch (\Exception $e) {

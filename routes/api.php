@@ -67,6 +67,10 @@ Route::prefix('auth')->group(function () {
         Route::put('/change-password', [AuthController::class, 'changePassword']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::get('/auth/check-suspended', [AuthController::class, 'checkSuspended']);
+
+        // ======== NOUVELLES ROUTES POUR LA GESTION MULTI-APPAREILS ========
+        Route::get('/devices', [AuthController::class, 'listDevices']);
+        Route::delete('/devices/{tokenId}', [AuthController::class, 'revokeDevice']);
     });
 });
 
@@ -161,8 +165,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/{id}/terminer', [App\Http\Controllers\Admin\LivreurAssignationController::class, 'terminer']);
         });
 
-        
-
         Route::prefix('hubs')->group(function () {
             Route::get('/', [App\Http\Controllers\Admin\HubController::class, 'index']);
             Route::post('/', [App\Http\Controllers\Admin\HubController::class, 'store']);
@@ -186,6 +188,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('livraisons/search', [AdminLivraisonController::class, 'search']);
         Route::patch('livraisons/{id}/assign-livreur', [AdminLivraisonController::class, 'assignLivreur']);
         Route::patch('livraisons/{id}/status', [AdminLivraisonController::class, 'updateStatus']);
+
+        // ⭐ ROUTE POUR MODIFIER LE STATUT DE RETOUR (UNIQUEMENT POUR LIVRAISONS ANNULÉES)
+        Route::patch('livraisons/{id}/return-status', [AdminLivraisonController::class, 'updateReturnStatus']);
+
         Route::get('livraisons/stats/general', [AdminLivraisonController::class, 'statistiquesGenerales']);
         Route::get('livraisons/en-attente', [AdminLivraisonController::class, 'livraisonsEnAttente']);
         Route::get('livraisons/terminees', [AdminLivraisonController::class, 'livraisonsTerminees']);
@@ -195,7 +201,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('livraisons/getByLivreur/{id}', [AdminLivraisonController::class, 'getByLivreur']);
         Route::patch('livraisons/{id}/payment-status', [AdminLivraisonController::class, 'updatePaymentStatus']);
 
-         // AJOUTER CES ROUTES
+        // AJOUTER CES ROUTES
         Route::get('livraisons/{id}/edit', [AdminLivraisonController::class, 'edit']);
         Route::put('livraisons/{id}', [AdminLivraisonController::class, 'update']);
         Route::get('livraisons/{id}/history', [AdminLivraisonController::class, 'getHistory']);
@@ -207,6 +213,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Routes pour les selects
         Route::get('clients/select', [AdminLivraisonController::class, 'getClientsForSelect']);
         Route::get('livreurs/select', [AdminLivraisonController::class, 'getLivreursForSelect']);
+
+        // ⭐⭐⭐ NOUVELLES ROUTES POUR L'IMPRESSION MULTIPLE ⭐⭐⭐
+        Route::post('livraisons/bordereaux-multiple', [AdminLivraisonController::class, 'generateMultipleBordereauxPDF']);
+        Route::post('livraisons/print-multiple-html', [AdminLivraisonController::class, 'generateMultiplePrintHTML']);
 
         // ======== COMMISSIONS ========
         Route::prefix('commissions')->group(function () {
@@ -354,7 +364,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/demander-multiple', [GainController::class, 'demanderPaiementMultiple']);
         });
 
-         // ⭐ LIVRAISONS - AVEC LES NOUVELLES ROUTES D'ASSIGNATION ⭐
+        // ⭐ LIVRAISONS - AVEC LES NOUVELLES ROUTES D'ASSIGNATION ⭐
         Route::prefix('livraisons')->group(function () {
             Route::get('/', [App\Http\Controllers\Manager\LivraisonController::class, 'index']);
             Route::get('search', [App\Http\Controllers\Manager\LivraisonController::class, 'search']);
@@ -371,22 +381,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('{id}', [App\Http\Controllers\Manager\LivraisonController::class, 'update']);
             Route::post('/', [App\Http\Controllers\Manager\LivraisonController::class, 'store']);
             Route::get('clients/liste', [App\Http\Controllers\Manager\LivraisonController::class, 'getClients']);
-
         });
-
-        // Livraisons
-        // Route::prefix('livraisons')->group(function () {
-        //     Route::get('/', [App\Http\Controllers\Manager\LivraisonController::class, 'index']);
-        //     Route::get('search', [App\Http\Controllers\Manager\LivraisonController::class, 'search']);
-        //     Route::get('status/{status}', [App\Http\Controllers\Manager\LivraisonController::class, 'byStatus']);
-        //     Route::get('{id}', [App\Http\Controllers\Manager\LivraisonController::class, 'show']);
-        //     Route::patch('{id}/status', [App\Http\Controllers\Manager\LivraisonController::class, 'updateStatus']);
-        // });
 
         // Livreurs
         Route::prefix('livreurs')->group(function () {
             Route::get('/', [App\Http\Controllers\Manager\LivreurController::class, 'index']);
-             Route::post('/', [App\Http\Controllers\Manager\LivreurController::class, 'store']);
+            Route::post('/', [App\Http\Controllers\Manager\LivreurController::class, 'store']);
             Route::get('/search', [App\Http\Controllers\Manager\LivreurController::class, 'search']);
             Route::get('/natifs', [App\Http\Controllers\Manager\LivreurController::class, 'getNatifs']);
             Route::get('/assignes', [App\Http\Controllers\Manager\LivreurController::class, 'getAssignes']);
@@ -425,12 +425,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::post('/', [ManagerNavetteController::class, 'store']);
             Route::get('/disponibles', [ManagerNavetteController::class, 'getLivraisonsDisponibles']);
             Route::get('/{id}', [ManagerNavetteController::class, 'show']);
-            Route::put('/{id}', [ManagerNavetteController::class, 'update']);  // ← AJOUTER CETTE ROUTE
+            Route::put('/{id}', [ManagerNavetteController::class, 'update']);
             Route::delete('/{id}', [ManagerNavetteController::class, 'destroy']);
             Route::post('/{id}/demarrer', [ManagerNavetteController::class, 'demarrer']);
             Route::post('/{id}/terminer', [ManagerNavetteController::class, 'terminer']);
             Route::post('/{id}/annuler', [ManagerNavetteController::class, 'annuler']);
-            Route::get('/{id}/livraisons-disponibles', [ManagerNavetteController::class, 'getLivraisonsDisponiblesForNavette']); // ← AJOUTER CETTE ROUTE
+            Route::get('/{id}/livraisons-disponibles', [ManagerNavetteController::class, 'getLivraisonsDisponiblesForNavette']);
         });
 
         // ==================== GAINS NAVETTES (GESTIONNAIRE) ====================

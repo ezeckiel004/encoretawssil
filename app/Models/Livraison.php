@@ -20,6 +20,7 @@ class Livraison extends Model
         'code_pin',
         'date_ramassage',
         'date_livraison',
+        'return_status',
         'status',
         'navette_id', // Ajout
         'payment_status'
@@ -27,6 +28,7 @@ class Livraison extends Model
 
     protected $casts = [
         'status'         => 'string',
+        'return_status'  => 'string',
         'date_ramassage' => 'date',
         'date_livraison' => 'date',
     ];

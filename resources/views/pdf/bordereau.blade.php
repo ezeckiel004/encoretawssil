@@ -23,12 +23,28 @@
             margin: 0 !important;
             padding: 0 !important;
             width: 100mm !important;
-            height: 150mm !important;
-            overflow: hidden !important;
-            font-family: DejaVuSans, Arial, Helvetica, sans-serif !important;
-            font-size: 10.5px;
-            color: #000;
             background: #fff;
+            font-family: DejaVuSans, Arial, Helvetica, sans-serif !important;
+        }
+
+        /* ✅ Style pour l'impression simple */
+        .bordereau-single {
+            width: 100mm;
+            height: 150mm;
+            page-break-after: avoid;
+            page-break-inside: avoid;
+        }
+
+        /* ✅ Style pour l'assemblage multiple */
+        .bordereau-multiple {
+            width: 100mm;
+            height: 150mm;
+            page-break-after: always;
+            page-break-inside: avoid;
+        }
+
+        .bordereau-multiple:last-child {
+            page-break-after: auto;
         }
 
         .label {
@@ -43,13 +59,14 @@
             flex-direction: column;
         }
 
-        /* HEADER */
+        /* HEADER CORRIGÉ - TEXTE DÉCALÉ VERS LA GAUCHE */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2.5mm;
             flex-shrink: 0;
+            position: relative;
         }
 
         .logo {
@@ -65,12 +82,14 @@
         }
 
         .title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            text-align: left;
-            line-height: 1.1;
-            margin-left: 70mm; /* CORRIGÉ : marge gauche négative pour décaler vers la gauche */
-            /* Ajustez cette valeur selon vos besoins (-10mm, -20mm, etc.) */
+            text-align: right;
+            line-height: 1.2;
+            margin-left: auto;
+            margin-right: 0;
+            position: relative;
+            left: -5mm;
         }
 
         .title span:first-child {
@@ -135,11 +154,11 @@
         }
 
         .phone-right {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: #2563eb;
             background-color: #e6f0ff;
-            padding: 1.5mm 1.5mm;
+            padding: 1mm;
             border-radius: 2mm;
             margin-top: 2px;
             display: inline-block;
@@ -257,123 +276,140 @@
         .commune-value {
             font-weight: normal;
         }
+
+        /* Pour l'impression */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .label {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .title {
+                left: -5mm !important;
+            }
+        }
     </style>
 </head>
 
 <body>
-    <div class="label">
-        <!-- HEADER -->
-        <div class="header">
-            <div class="logo">
-                @php
-                $logoPath = public_path('Tawsillogo.png');
-                $logoBase64 = '';
-                if (file_exists($logoPath)) {
-                $logoData = file_get_contents($logoPath);
-                $logoBase64 = 'data:image/png;base64,' . base64_encode($logoData);
-                } else {
-                $logoBase64 = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg"
-                    width="55" height="55" viewBox="0 0 55 55">
-                    <rect width="55" height="55" fill="#3b82f6" /><text x="27.5" y="27.5" text-anchor="middle" dy=".3em"
-                        fill="white" font-size="14" font-family="Arial">TG</text>
-                </svg>');
-                }
-                @endphp
-                <img src="{{ $logoBase64 }}" alt="Logo TAWSSIL GO" />
-            </div>
-
-            <div class="title">
-                <span>TAWSSIL</span><br><span>GO</span>
-            </div>
-        </div>
-
-        <!-- MAIN INFO -->
-        <div class="main-info">
-            <div class="left-info">
-                <div class="expediteur-block">
-                    <div><b>Expéditeur :</b> {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }}</div>
-                    <div><b>Tél :</b> {{ $client->telephone ?? 'N/A' }}</div>
-                    <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_depot ?? 'Non
-                        spécifiée', 30) }}</div>
+    {{-- ✅ Conteneur avec classe conditionnelle pour l'impression multiple --}}
+    <div class="{{ isset($isMultiple) && $isMultiple ? 'bordereau-multiple' : 'bordereau-single' }}">
+        <div class="label">
+            <!-- HEADER CORRIGÉ AVEC TEXTE DÉCALÉ VERS LA GAUCHE -->
+            <div class="header">
+                <div class="logo">
+                    @php
+                    $logoPath = public_path('Tawsillogo.png');
+                    $logoBase64 = '';
+                    if (file_exists($logoPath)) {
+                        $logoData = file_get_contents($logoPath);
+                        $logoBase64 = 'data:image/png;base64,' . base64_encode($logoData);
+                    } else {
+                        $logoBase64 = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="55" height="55" viewBox="0 0 55 55">
+                            <rect width="55" height="55" fill="#3b82f6" />
+                            <text x="27.5" y="27.5" text-anchor="middle" dy=".3em" fill="white" font-size="14" font-family="Arial">TG</text>
+                        </svg>');
+                    }
+                    @endphp
+                    <img src="{{ $logoBase64 }}" alt="Logo TAWSSIL GO" />
                 </div>
 
-                <div class="destinataire-block">
-                    <div><b>Destinataire :</b> {{ $destinataire->prenom ?? '' }} {{ $destinataire->nom ?? '' }}</div>
-                    <div><b>Tél :</b> {{ $destinataire->telephone ?? 'N/A' }}</div>
-                    <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_delivery ?? 'Non
-                        spécifiée', 30) }}</div>
-                    @if(!empty($demande->commune))
-                    <div class="commune-line">
-                        <span class="commune-label">Commune :</span>
-                        <span class="commune-value">{{ Str::limit($demande->commune, 20) }}</span>
+                <div class="title">
+                    <span>TAWSSIL</span><br><span>GO</span>
+                </div>
+            </div>
+
+            <!-- MAIN INFO -->
+            <div class="main-info">
+                <div class="left-info">
+                    <div class="expediteur-block">
+                        <div><b>Expéditeur :</b> {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }}</div>
+                        <div><b>Tél :</b> {{ $client->telephone ?? 'N/A' }}</div>
+                        <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_depot ?? 'Non spécifiée', 30) }}</div>
                     </div>
+
+                    <div class="destinataire-block">
+                        <div><b>Destinataire :</b> {{ $destinataire->prenom ?? '' }} {{ $destinataire->nom ?? '' }}</div>
+                        <div><b>Tél :</b> {{ $destinataire->telephone ?? 'N/A' }}</div>
+                        <div class="address-line"><b>Adresse :</b> {{ Str::limit($demande->addresse_delivery ?? 'Non spécifiée', 30) }}</div>
+                        @if(!empty($demande->commune))
+                        <div class="commune-line">
+                            <span class="commune-label">Commune :</span>
+                            <span class="commune-value">{{ Str::limit($demande->commune, 20) }}</span>
+                        </div>
+                        @endif
+                    </div>
+
+                    <div><b>Date :</b> {{ $printDate }}</div>
+                    @if($livraison->date_ramassage)
+                    <div><b>Ramassage :</b> {{ date('d-m', strtotime($livraison->date_ramassage)) }}</div>
                     @endif
                 </div>
 
-                <div><b>Date :</b> {{ $printDate }}</div>
-                @if($livraison->date_ramassage)
-                <div><b>Ramassage :</b> {{ date('d-m', strtotime($livraison->date_ramassage)) }}</div>
-                @endif
-            </div>
-
-            <div class="right-info">
-                @if(!empty($wilayaNumber))
-                <div class="wilaya">{{ $wilayaNumber }}</div>
-                @endif
-                @if(!empty($wilayaName))
-                <div class="city">{{ Str::limit(ucwords(strtolower($wilayaName)), 12) }}</div>
-                @endif
-                {{-- <div class="phone-right">
-                    {{ $destinataire->telephone ?? 'N/A' }}
-                </div> --}}
-            </div>
-        </div>
-
-        <!-- BARCODE -->
-        <div class="barcode">
-            <div class="barcode-text">{{ Str::limit($colisLabel, 20) }}</div>
-            <img src="{{ $barcode }}" alt="Code-barres" />
-            <div class="pin-code">PIN: {{ $livraison->code_pin }}</div>
-        </div>
-
-        <!-- TABLE -->
-        <table>
-            <tr>
-                <th>Description</th>
-                <th>Prix</th>
-            </tr>
-            <tr>
-                <td>
-                    {{ Str::limit($colis->colis_type ?? 'Colis', 15) }}
-                    @if($colis->poids ?? false)
-                    ({{ $colis->poids }} kg)
+                <div class="right-info">
+                    @if(!empty($wilayaNumber))
+                    <div class="wilaya">{{ $wilayaNumber }}</div>
                     @endif
-                </td>
-                <td>{{ number_format($colis->colis_prix ?? 0, 0, ',', ' ') }} DA</td>
-            </tr>
-            @if($demande->prix ?? false)
-            <tr class="livraison-price-row">
-                <td colspan="2" style="text-align: left; font-size: 9.5px;">
-                    <strong>Frais :</strong> {{ number_format($demande->prix, 0, ',', ' ') }} DA
-                </td>
-            </tr>
-            @endif
-            @if($demande->info_additionnel ?? false)
-            <tr>
-                <td colspan="2" style="text-align: left; font-size: 9px;">
-                    <strong>Note :</strong> {{ Str::limit($demande->info_additionnel, 30) }}
-                </td>
-            </tr>
-            @endif
-        </table>
+                    @if(!empty($wilayaName))
+                    <div class="city">{{ Str::limit(ucwords(strtolower($wilayaName)), 12) }}</div>
+                    @endif
+                    <div class="phone-right">
+                        {{ $destinataire->telephone ?? 'N/A' }}
+                    </div>
+                </div>
+            </div>
 
-        <!-- FOOTER -->
-        <div class="footer">
-            Je déclare {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }} que les détails déclarés sur ce bordereau sont corrects et que <br> le colis ne contient
-            aucun produit dangereux ou interdit par la loi.
+            <!-- BARCODE -->
+            <div class="barcode">
+                <div class="barcode-text">{{ Str::limit($colisLabel, 20) }}</div>
+                <img src="{{ $barcode }}" alt="Code-barres" />
+                <div class="pin-code">PIN: {{ $livraison->code_pin }}</div>
+            </div>
 
-            <div class="date-ref">
-                #{{ $livraison->id }} | {{ $statusLabel }}
+            <!-- TABLE -->
+            <table>
+                <tr>
+                    <th>Description</th>
+                    <th>Prix</th>
+                </tr>
+                <tr>
+                    <td>
+                        {{ Str::limit($colis->colis_type ?? 'Colis', 15) }}
+                        @if($colis->poids ?? false)
+                        ({{ $colis->poids }} kg)
+                        @endif
+                    </td>
+                    <td>{{ number_format($colis->colis_prix ?? 0, 0, ',', ' ') }} DA</td>
+                </tr>
+                @if($demande->prix ?? false)
+                <tr class="livraison-price-row">
+                    <td colspan="2" style="text-align: left; font-size: 9.5px;">
+                        <strong>Frais :</strong> {{ number_format($demande->prix, 0, ',', ' ') }} DA
+                    </td>
+                </tr>
+                @endif
+                @if($demande->info_additionnel ?? false)
+                <tr>
+                    <td colspan="2" style="text-align: left; font-size: 9px;">
+                        <strong>Note :</strong> {{ Str::limit($demande->info_additionnel, 30) }}
+                    </td>
+                </tr>
+                @endif
+            </table>
+
+            <!-- FOOTER -->
+            <div class="footer">
+                Je déclare {{ $client->prenom ?? '' }} {{ $client->nom ?? '' }} que les détails déclarés sur ce bordereau sont corrects et que <br> le colis ne contient
+                aucun produit dangereux ou interdit par la loi.
+
+                <div class="date-ref">
+                    #{{ substr($livraison->id, 0, 8) }} | {{ $statusLabel }}
+                </div>
             </div>
         </div>
     </div>
